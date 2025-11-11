@@ -37,7 +37,8 @@ directly from Google. Use is subject to these
 
 See the [installation documentation](docs/installation.md).
 
-如果你的服务器不支持Docker的话，或者用它的这套方法配不下来的话，你可以看看我的方案[installation-mine documentation](docs/installation1.md)
+如果你的服务器不支持Docker的话，或者用它的这套方法配不下来的话，你可以看看我的方案[installation-mine documentation](https://github.com/yuanlao153/alphafold3_DNA_MSA-template_allowe/blob/main/docs/Installation1.md)
+
 Once you have installed AlphaFold 3, you can test your setup using e.g. the
 following input JSON file named `fold_input.json`:
 
