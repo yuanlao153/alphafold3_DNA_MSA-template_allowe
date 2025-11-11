@@ -485,11 +485,22 @@ class MSA:
           if need_msa_pairing and isinstance(chain, folding_input.ProteinChain):
             paired_a3m = chain.paired_msa
           if isinstance(
-              chain, folding_input.RnaChain | folding_input.ProteinChain
+              chain, folding_input.RnaChain | folding_input.ProteinChain | folding_input.DnaChain#修改10，加入| folding_input.DnaChain
           ):
             unpaired_a3m = chain.unpaired_msa
+                  # --- START OF DEBUG PRINT ---
+        print(f"第4个print--- DEBUG 2.1: MSA.compute_features ---")
+        print(f"第5个printDEBUG 2.1: Chain Type: {chain_type}")
+        print(f"第6个printDEBUG 2.1: Got unpaired_a3m: {unpaired_a3m[:50] if unpaired_a3m else 'None/Empty'}") # 打印获取到的字符串
+        # --- END OF DEBUG PRINT ---
         # If we generated the MSA ourselves, it is already deduplicated. If it
         # is user-provided, keep it as is to prevent destroying desired pairing.
+                # [!!! 这里是关键的获取自定义 MSA 字符串的位置 !!!]
+        print("泥嚎~ 这里是关键的获取自定义 MSA 字符串的位置 ~")
+        print(f"--- DEBUG: {chain_type} - Unpaired MSA Source ---")
+        print(f"DEBUG: Unpaired A3M Content starts with: {unpaired_a3m[:50]}") # 打印前50个字符
+        print("泥嚎~ 这里是关键的获取自定义 MSA 字符串的位置 ~")
+
         unpaired_msa = msa_module.Msa.from_a3m(
             query_sequence=sequence,
             chain_poly_type=chain_type,
@@ -713,6 +724,166 @@ class Templates:
   atom_mask: xnp_ndarray
 
   @classmethod
+  # def compute_features(
+  #     cls,
+  #     all_tokens: atom_layout.AtomLayout,
+  #     standard_token_idxs: np.ndarray,
+  #     padding_shapes: PaddingShapes,
+  #     fold_input: folding_input.Input,
+  #     max_templates: int,
+  #     logging_name: str,
+  # ) -> Self:
+  #   """Compute the template features."""
+
+  #   seen_entities = {}
+  #   polymer_entity_features = {True: {}, False: {}}
+
+  #   substruct = atom_layout.make_structure(
+  #       flat_layout=all_tokens,
+  #       atom_coords=np.zeros(all_tokens.shape + (3,)),
+  #       name=logging_name,
+  #   )
+  #   np_chains_list = []
+
+  #   input_chains_by_id = {chain.id: chain for chain in fold_input.chains}
+
+  #   nonempty_chain_ids = set(all_tokens.chain_id)
+  #   for chain_info in substruct.iter_chains():
+  #     chain_id = chain_info['chain_id']
+  #     chain_type = chain_info['chain_type']
+  #     chain = input_chains_by_id[chain_id]
+
+  #     # Generalised "sequence" for ligands (can't trust residue name)
+  #     chain_tokens = all_tokens[all_tokens.chain_id == chain_id]
+  #     assert chain_tokens.res_name is not None
+  #     three_letter_sequence = ','.join(chain_tokens.res_name.tolist())
+  #     chain_num_tokens = len(chain_tokens.atom_name)
+
+  #     # Don't compute features for chains not included in the crop, or ligands.
+  #     is_protein_or_dna = chain_type in (mmcif_names.PROTEIN_CHAIN, mmcif_names.DNA_CHAIN)
+  #     # skip_chain = (
+  #     #     chain_type != mmcif_names.PROTEIN_CHAIN
+  #     #     or chain_num_tokens <= 4  # not cache filled
+  #     #     or chain_id not in nonempty_chain_ids
+  #     # )
+  #     # <<< 修改点 #1: 允许 DNA 链进入模板处理流程 修改15'
+      
+
+  #     skip_chain = (
+  #         not is_protein_or_dna  # 如果不是蛋白质或DNA，就跳过
+  #         or chain_num_tokens <= 4
+  #         or chain_id not in nonempty_chain_ids
+  #     )
+  #     # <<< 中文 PRINT
+  #     print(f"老铁，这里是模板特征计算的入口！链ID: {chain_id}, 类型: {chain_type}, 是不是要跳过: {skip_chain}")
+
+  #     if three_letter_sequence in seen_entities:
+  #       entity_id = seen_entities[three_letter_sequence]
+  #     else:
+  #       entity_id = len(seen_entities) + 1
+
+  #     if entity_id not in polymer_entity_features[skip_chain]:
+  #       if skip_chain:
+  #         template_features = data3.empty_template_features(chain_num_tokens)
+  #       # else:
+  #       #   assert isinstance(chain, folding_input.ProteinChain)
+  #       else:
+  #         # <<< 修改点 #2: 适配断言，允许 ProteinChain 或 DnaChain 修改16'
+  #         assert isinstance(chain, (folding_input.ProteinChain, folding_input.DnaChain))
+  #         # <<< 中文 PRINT
+  #         print(f"链 {chain_id} 进入模板处理分支, 类型是: {type(chain).__name__}")
+
+  #         sorted_features = []
+  #         for template_idx, template in enumerate(chain.templates):#修改18’
+  #         # for template in chain.templates:
+  #           struc = structure.from_mmcif(
+  #               template.mmcif,
+  #               fix_mse_residues=True,
+  #               fix_arginines=True,
+  #               include_bonds=False,
+  #               include_water=False,
+  #               include_other=True,  # For non-standard polymer chains.
+  #           )
+  #           # hit_features = templates.get_polymer_features(
+  #           #     chain=struc,
+  #           #     chain_poly_type=mmcif_names.PROTEIN_CHAIN,
+  #           #     query_sequence_length=len(chain.sequence),
+  #           #     query_to_hit_mapping=dict(template.query_to_template_map),
+  #           # )
+  #           # <<< 中文 PRINT
+  #           print(f"    -> 正在为链 {chain_id} 的第 {template_idx+1} 个模板调用 get_polymer_features...")
+
+  #           # <<< 修改点 #3: 动态传递 chain_type #修改17'
+  #           hit_features = templates.get_polymer_features(
+  #               chain=struc,
+  #               chain_poly_type=chain_type, # 把硬编码的 PROTEIN_CHAIN 改成变量
+  #               query_sequence_length=len(chain.sequence),
+  #               query_to_hit_mapping=dict(template.query_to_template_map),
+  #           )
+  #           sorted_features.append(hit_features)
+
+  #         template_features = templates.package_template_features(
+  #             hit_features=sorted_features,
+  #             include_ligand_features=False,
+  #         )
+
+  #         template_features = data3.fix_template_features(
+  #             template_features=template_features, num_res=len(chain.sequence)
+  #         )
+
+  #       template_features = _reduce_template_features(
+  #           template_features, max_templates
+  #       )
+  #       polymer_entity_features[skip_chain][entity_id] = template_features
+
+  #     seen_entities[three_letter_sequence] = entity_id
+  #     feats = polymer_entity_features[skip_chain][entity_id].copy()
+  #     feats['chain_id'] = chain_id
+  #     np_chains_list.append(feats)
+
+  #   # We pad the num_templates dimension before merging, so that different
+  #   # chains can be concatenated on the num_res dimension.  Masking will be
+  #   # applied so that each chains templates can't see each other.
+  #   for chain in np_chains_list:
+  #     chain['template_aatype'] = _pad_to(
+  #         chain['template_aatype'], (max_templates, None)
+  #     )
+  #     chain['template_atom_positions'] = _pad_to(
+  #         chain['template_atom_positions'], (max_templates, None, None, None)
+  #     )
+  #     chain['template_atom_mask'] = _pad_to(
+  #         chain['template_atom_mask'], (max_templates, None, None)
+  #     )
+
+  #   # Merge on token dimension.
+  #   np_example = {
+  #       ft: np.concatenate([c[ft] for c in np_chains_list], axis=1)
+  #       for ft in np_chains_list[0]
+  #       if ft in data_constants.TEMPLATE_FEATURES
+  #   }
+
+  #   # Crop template data. Need to use the standard token indices, since msa does
+  #   # not expand non-standard residues. This means that for expanded residues,
+  #   # we get repeated template information.
+  #   for feature_name, v in np_example.items():
+  #     np_example[feature_name] = v[:max_templates, standard_token_idxs, ...]
+
+  #   # Pad along the token dimension.
+  #   templates_features = Templates(
+  #       aatype=_pad_to(
+  #           np_example['template_aatype'], (None, padding_shapes.num_tokens)
+  #       ),
+  #       atom_positions=_pad_to(
+  #           np_example['template_atom_positions'],
+  #           (None, padding_shapes.num_tokens, None, None),
+  #       ),
+  #       atom_mask=_pad_to(
+  #           np_example['template_atom_mask'].astype(bool),
+  #           (None, padding_shapes.num_tokens, None),
+  #       ),
+  #   )
+  #   return templates_features
+  @classmethod
   def compute_features(
       cls,
       all_tokens: atom_layout.AtomLayout,
@@ -742,18 +913,19 @@ class Templates:
       chain_type = chain_info['chain_type']
       chain = input_chains_by_id[chain_id]
 
-      # Generalised "sequence" for ligands (can't trust residue name)
       chain_tokens = all_tokens[all_tokens.chain_id == chain_id]
       assert chain_tokens.res_name is not None
       three_letter_sequence = ','.join(chain_tokens.res_name.tolist())
       chain_num_tokens = len(chain_tokens.atom_name)
 
-      # Don't compute features for chains not included in the crop, or ligands.
+      is_protein_or_dna = chain_type in (mmcif_names.PROTEIN_CHAIN, mmcif_names.DNA_CHAIN)
+      
       skip_chain = (
-          chain_type != mmcif_names.PROTEIN_CHAIN
-          or chain_num_tokens <= 4  # not cache filled
+          not is_protein_or_dna
+          or chain_num_tokens <= 4
           or chain_id not in nonempty_chain_ids
       )
+      print(f"老铁，这里是模板特征计算的入口！链ID: {chain_id}, 类型: {chain_type}, 是不是要跳过: {skip_chain}")
 
       if three_letter_sequence in seen_entities:
         entity_id = seen_entities[three_letter_sequence]
@@ -761,13 +933,22 @@ class Templates:
         entity_id = len(seen_entities) + 1
 
       if entity_id not in polymer_entity_features[skip_chain]:
+        # --- [核心修改开始] ---
         if skip_chain:
           template_features = data3.empty_template_features(chain_num_tokens)
+        
+        # 如果链不跳过，但又没有提供模板字段，也视为空模板
+        elif chain.templates is None:
+          print(f"    -> 链 {chain_id} ({chain_type}) 没有提供模板 (templates is None)，生成空模板特征。")
+          template_features = data3.empty_template_features(len(chain.sequence))
+        
+        # 只有当不跳过且提供了模板时，才进行真正的处理
         else:
-          assert isinstance(chain, folding_input.ProteinChain)
-
+          assert isinstance(chain, (folding_input.ProteinChain, folding_input.DnaChain))
+          print(f"链 {chain_id} ({type(chain).__name__}) 提供了 {len(chain.templates)} 个模板，开始处理...")
+          
           sorted_features = []
-          for template in chain.templates:
+          for template_idx, template in enumerate(chain.templates):
             struc = structure.from_mmcif(
                 template.mmcif,
                 fix_mse_residues=True,
@@ -776,9 +957,11 @@ class Templates:
                 include_water=False,
                 include_other=True,  # For non-standard polymer chains.
             )
+            print(f"    -> 正在为链 {chain_id} 的第 {template_idx+1} 个模板调用 get_polymer_features...")
+
             hit_features = templates.get_polymer_features(
                 chain=struc,
-                chain_poly_type=mmcif_names.PROTEIN_CHAIN,
+                chain_poly_type=chain_type,
                 query_sequence_length=len(chain.sequence),
                 query_to_hit_mapping=dict(template.query_to_template_map),
             )
@@ -792,7 +975,8 @@ class Templates:
           template_features = data3.fix_template_features(
               template_features=template_features, num_res=len(chain.sequence)
           )
-
+        # --- [核心修改结束] ---
+        
         template_features = _reduce_template_features(
             template_features, max_templates
         )
@@ -803,9 +987,7 @@ class Templates:
       feats['chain_id'] = chain_id
       np_chains_list.append(feats)
 
-    # We pad the num_templates dimension before merging, so that different
-    # chains can be concatenated on the num_res dimension.  Masking will be
-    # applied so that each chains templates can't see each other.
+    # --- [后面的代码保持不变] ---
     for chain in np_chains_list:
       chain['template_aatype'] = _pad_to(
           chain['template_aatype'], (max_templates, None)
@@ -817,20 +999,15 @@ class Templates:
           chain['template_atom_mask'], (max_templates, None, None)
       )
 
-    # Merge on token dimension.
     np_example = {
         ft: np.concatenate([c[ft] for c in np_chains_list], axis=1)
         for ft in np_chains_list[0]
         if ft in data_constants.TEMPLATE_FEATURES
     }
 
-    # Crop template data. Need to use the standard token indices, since msa does
-    # not expand non-standard residues. This means that for expanded residues,
-    # we get repeated template information.
     for feature_name, v in np_example.items():
       np_example[feature_name] = v[:max_templates, standard_token_idxs, ...]
 
-    # Pad along the token dimension.
     templates_features = Templates(
         aatype=_pad_to(
             np_example['template_aatype'], (None, padding_shapes.num_tokens)
