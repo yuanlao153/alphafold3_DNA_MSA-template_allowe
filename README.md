@@ -24,7 +24,7 @@ If you have any questions, please contact the AlphaFold team at
 [alphafold@google.com](mailto:alphafold@google.com).
 
 ## Obtaining Model Parameters
-
+(这个是模型参数，需要填表找官方团队去要，我没有嗷，不能提供，版权问题）
 This repository contains all necessary code for AlphaFold 3 inference. To
 request access to the AlphaFold 3 model parameters, please complete
 [this form](https://forms.gle/svvpY4u2jsHEwWYS6). Access will be granted at
