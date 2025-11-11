@@ -36,6 +36,7 @@ directly from Google. Use is subject to these
 ## Installation and Running Your First Prediction
 
 See the [installation documentation](docs/installation.md).
+
 如果你的服务器不支持Docker的话，或者用它的这套方法配不下来的话，你可以看看我的方案[installation-mine documentation](docs/installation1.md)
 Once you have installed AlphaFold 3, you can test your setup using e.g. the
 following input JSON file named `fold_input.json`:
