@@ -839,6 +839,10 @@ def get_polymer_features(
   Raises:
     ValueError: If the input structure contains more than just a single chain.
   """
+      # <<< 中文 PRINT 修改19'
+  print(f"\n--- 猛料来了！进入 get_polymer_features ---")
+  print(f"    链类型 (chain_poly_type): {chain_poly_type}")
+  print(f"    查询序列长度: {query_sequence_length}")
   if chain.name is None:
     raise ValueError('Template structure must have a name.')
 
@@ -862,6 +866,8 @@ def get_polymer_features(
   chain_sequence = chain.chain_single_letter_sequence()[label_chain_id]
 
   polymer = _POLYMERS[chain_poly_type]
+  # <<< 中文 PRINT 修改20'
+  print(f"    根据链类型，加载了原子配置: num_atoms={polymer.num_atom_types}, min_atoms={polymer.min_atoms}")
   res_arrays = chain.to_res_arrays(
       include_missing_residues=True, atom_order=polymer.atom_order
   )
@@ -882,6 +888,10 @@ def get_polymer_features(
 
   template_sequence = ''.join(template_sequence)
   template_aatype = _encode_restype(chain_poly_type, template_sequence)
+  # <<< 中文 PRINT
+  print(f"    模板序列编码 (template_aatype) 前10个: {np.array(template_aatype)[:10]}")
+  print(f"--- get_polymer_features 处理完毕！---\n")
+
   template_name = f'{chain.name.lower()}_{auth_chain_id}'
   release_date = chain.release_date.strftime('%Y-%m-%d')
   return {
