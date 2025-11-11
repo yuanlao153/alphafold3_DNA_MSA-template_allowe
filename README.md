@@ -25,9 +25,10 @@ If you have any questions, please contact the AlphaFold team at
 
 ## Obtaining Model Parameters
 (这个是模型参数，需要填表找官方团队去要，我没有嗷，不能提供，版权问题）
+
 This repository contains all necessary code for AlphaFold 3 inference. To
 request access to the AlphaFold 3 model parameters, please complete
-[this form](https://forms.gle/svvpY4u2jsHEwWYS6). Access will be granted at
+[this form](https://forms.gle/svvpY4u2jsHEwWYS6). （就是这个网址）Access will be granted at
 Google DeepMind’s sole discretion. We will aim to respond to requests within 2–3
 business days. You may only use AlphaFold 3 model parameters if received
 directly from Google. Use is subject to these
