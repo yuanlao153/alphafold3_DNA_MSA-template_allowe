@@ -649,7 +649,9 @@ class RnaChain:
 class DnaChain:
   """Single strand DNA chain input."""
 
-  __slots__ = ('_id', '_sequence', '_modifications', '_description')
+  # __slots__ = ('_id', '_sequence', '_modifications', '_description')
+  # 修改1. 在 __slots__ 中添加新属性.修改1'加入_templates
+  __slots__ = ('_id', '_sequence', '_modifications', '_description', '_unpaired_msa','_templates')
 
   def __init__(
       self,
@@ -658,6 +660,9 @@ class DnaChain:
       sequence: str,
       modifications: Sequence[tuple[str, int]],
       description: str | None = None,
+      # 修改2. 在 __init__ 中添加参数
+      unpaired_msa: str | None = None, # <<< 新增
+      templates: Sequence[Template] | None = None, # <<< 新增,修改2'
   ):
     """Initializes a single strand DNA chain input.
 
@@ -682,6 +687,17 @@ class DnaChain:
     # Use hashable container for modifications.
     self._modifications = tuple(modifications)
     self._description = description
+    # 修改3. 存储新属性
+    self._unpaired_msa = unpaired_msa # <<< 新增
+    self._templates = tuple(templates) if templates is not None else None # <<< 修改3'
+  #修改4'. 添加 @property 访问器
+  @property
+  def templates(self) -> Sequence[Template] | None:
+    return self._templates
+  # 修改4. 添加 @property 访问器
+  @property
+  def unpaired_msa(self) -> str | None:
+    return self._unpaired_msa # <<< 新增
 
   @property
   def id(self) -> str:
@@ -711,11 +727,13 @@ class DnaChain:
         and self._sequence == other._sequence
         and self._modifications == other._modifications
         and self._description == other._description
+        and self._unpaired_msa == other._unpaired_msa
+        and self._templates == other._templates # <<< 新增，修改5'
     )
 
   def __hash__(self) -> int:
     return hash(
-        (self._id, self._sequence, self._modifications, self._description)
+        (self._id, self._sequence, self._modifications, self._description,self._unpaired_msa,self._templates)#修改6'
     )
 
   def modifications(self) -> Sequence[tuple[str, int]]:
@@ -723,7 +741,7 @@ class DnaChain:
 
   def hash_without_id(self) -> int:
     """Returns a hash ignoring the ID - useful for deduplication."""
-    return hash((self._sequence, self._modifications, self._description))
+    return hash((self._sequence, self._modifications, self._description,self._unpaired_msa,self._templates)) #修改7'
 
   @classmethod
   def from_alphafoldserver_dict(
@@ -736,27 +754,104 @@ class DnaChain:
         (mod['modificationType'].removeprefix('CCD_'), mod['basePosition'])
         for mod in json_dict.get('modifications', [])
     ]
-    return cls(id=seq_id, sequence=sequence, modifications=modifications)
+    return cls(id=seq_id, sequence=sequence, modifications=modifications,)
 
   @classmethod
   def from_dict(
-      cls, json_dict: Mapping[str, Any], seq_id: str | None = None
+      cls, 
+      json_dict: Mapping[str, Any], 
+      json_path: pathlib.Path | None = None, # 修改6<<< 必须添加 json_path 参数
+      seq_id: str | None = None
   ) -> Self:
     """Constructs DnaChain from the AlphaFold JSON dict."""
+    print("第一个print--- DEBUG 1.2: DnaChain.from_dict Start ---") # <<< DEBUG PRINT
     json_dict = json_dict['dna']
+    # _validate_keys(
+    #     json_dict.keys(), {'id', 'sequence', 'modifications', 'description'}
+    # )
+
+    # 修改7. 扩展校验 (精确复制 RnaChain 的校验键)
     _validate_keys(
-        json_dict.keys(), {'id', 'sequence', 'modifications', 'description'}
+        json_dict.keys(),
+        {
+            'id',
+            'sequence',
+            'modifications',
+            'description',
+            'unpairedMsa',
+            'unpairedMsaPath',
+            'templates',#修改8'
+        },
     )
+    #序列与修饰的读取逻辑
     sequence = json_dict['sequence']
     modifications = [
         (mod['modificationType'], mod['basePosition'])
         for mod in json_dict.get('modifications', [])
     ]
+
+    # 修改8. 复制 RnaChain 的 MSA 读取和校验逻辑
+    unpaired_msa = json_dict.get('unpairedMsa', None)
+    unpaired_msa_path = json_dict.get('unpairedMsaPath', None)
+    
+    print(f"DEBUG 1.2: json_path={json_path}") # <<< DEBUG PRINT
+    print(f"DEBUG 1.2: unpaired_msa_path={unpaired_msa_path}") # <<< DEBUG PRINT
+
+    if unpaired_msa and unpaired_msa_path:
+      raise ValueError('Only one of unpairedMsa/unpairedMsaPath can be set.')
+    
+    if (
+        unpaired_msa
+        and len(unpaired_msa) < 256
+        and os.path.exists(unpaired_msa)
+    ):
+      raise ValueError(
+          'Set the unpaired MSA path using the "unpairedMsaPath" field.'
+      )
+    elif unpaired_msa_path:
+      unpaired_msa = _read_file(pathlib.Path(unpaired_msa_path), json_path) 
+      
+      # === [DEBUG PRINT 验证文件内容] ===
+      print(f"第二个printDEBUG 1.2: MSA path '{unpaired_msa_path}' loaded successfully.")
+      print(f"第三个printDEBUG 1.2: MSA content first 50 chars: {unpaired_msa[:50]}")
+      # === [DEBUG PRINT 结束] ===
+
+#修改9. 复制 RnaChain 的模板解析逻辑
+    print("第四个print--- DEBUG 1.2: Template parsing start ---")
+    # <<< 新增模板解析逻辑 (完全复制 ProteinChain.from_dict 中的逻辑)
+    raw_templates = json_dict.get('templates', None)
+
+    if raw_templates is None:
+        templates = None
+    else:
+        templates = []
+        for raw_template in raw_templates:
+            _validate_keys(
+                raw_template.keys(),
+                {'mmcif', 'mmcifPath', 'queryIndices', 'templateIndices'},
+            )
+            mmcif = raw_template.get('mmcif', None)
+            mmcif_path = raw_template.get('mmcifPath', None)
+            if mmcif and mmcif_path:
+                raise ValueError('Only one of mmcif/mmcifPath can be set.')
+            if mmcif and len(mmcif) < 256 and os.path.exists(mmcif):
+                raise ValueError('Set the template path using the "mmcifPath" field.')
+            if mmcif_path:
+                mmcif = _read_file(pathlib.Path(mmcif_path), json_path)
+            query_to_template_map = dict(
+                zip(raw_template['queryIndices'], raw_template['templateIndices'])
+            )
+            templates.append(
+                Template(mmcif=mmcif, query_to_template_map=query_to_template_map)
+            )
+
     return cls(
         id=seq_id or json_dict['id'],
         sequence=sequence,
         modifications=modifications,
         description=json_dict.get('description', None),
+        unpaired_msa=unpaired_msa, # 修改9.<<< 传递新属性
+        templates=templates, # 修改#10'
     )
 
   def to_dict(
@@ -771,9 +866,40 @@ class DnaChain:
             for mod in self._modifications
         ],
     }
+    # <<< 新增模板序列化逻辑 (完全复制 ProteinChain.to_dict 中的逻辑)#修改11’
+    if self._templates is None:
+        templates = None
+    else:
+        templates = [
+            {
+                'mmcif': template.mmcif,
+                'queryIndices': list(template.query_to_template_map.keys()),
+                'templateIndices': (
+                    list(template.query_to_template_map.values()) or None
+                ),
+            }
+            for template in self._templates
+        ]
+
+    contents['templates'] = templates # <<< 新增 #修改12'  
+    # 修改5. 修改 to_dict 方法
+    contents['unpairedMsa'] = self._unpaired_msa # <<< 新增
     if self._description is not None:
       contents['description'] = self._description
     return {'dna': contents}
+
+# 在 DnaChain 类中新增此方法
+#修改13'
+  def fill_missing_fields(self) -> Self:
+    """Fill missing MSA and template fields with default values."""
+    return DnaChain(
+        id=self.id,
+        sequence=self._sequence,
+        modifications=self._modifications,
+        description=self._description,
+        unpaired_msa=self._unpaired_msa or '',
+        templates=self._templates or [], # <<< 新增
+    )
 
   def to_ccd_sequence(self) -> Sequence[str]:
     """Converts to a sequence of CCD codes."""
@@ -1176,7 +1302,7 @@ class Input:
         elif 'rna' in sequence:
           chains.append(RnaChain.from_dict(sequence, json_path, seq_id))
         elif 'dna' in sequence:
-          chains.append(DnaChain.from_dict(sequence, seq_id=seq_id))
+          chains.append(DnaChain.from_dict(sequence, json_path,seq_id=seq_id))
         elif 'ligand' in sequence:
           chains.append(Ligand.from_dict(sequence, seq_id=seq_id))
         else:
